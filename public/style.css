@@ -90,6 +90,30 @@ button { font-family: inherit; color: inherit; }
 
 #month-label { font-size: 16px; font-weight: 500; min-width: 140px; text-align: center; }
 
+.view-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  padding: 0 0 8px;
+}
+.view-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 3px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.view-btn:first-child { border-radius: 12px 0 0 12px; }
+.view-btn:last-child { border-radius: 0 12px 12px 0; }
+.view-btn.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
 /* Summary */
 .summary-card {
   display: flex;
@@ -328,6 +352,7 @@ main { padding: 0 12px 12px; }
   flex-shrink: 0;
 }
 
+.cat-row-icon, .cat-row-name { cursor: pointer; }
 .cat-row-name { flex: 1; font-size: 14px; font-weight: 500; }
 
 .row-delete {

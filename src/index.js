@@ -2,6 +2,37 @@ const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const FREQUENCIES = ["daily", "weekly", "monthly", "yearly"];
 
+const CATEGORY_ICONS = [
+  [/food|meal|makan|dine|restaurant|eat/i, "🍔"],
+  [/groceries|grocery|supermarket/i, "🛒"],
+  [/transport|grab|taxi|uber|mrt|bus|parking|toll|fuel|gas|petrol/i, "🚌"],
+  [/shop|cloth|fashion|apparel/i, "🛍️"],
+  [/bill|utilit|electric|water|internet|phone|mobile|telco/i, "🧾"],
+  [/health|medic|doctor|pharmacy|hospital|clinic/i, "💊"],
+  [/entertain|movie|game|concert|stream/i, "🎬"],
+  [/edu|school|tuition|course|book|learn/i, "📚"],
+  [/home|rent|hous|mortgage|furniture/i, "🏠"],
+  [/car|auto|vehicle|repair/i, "🚗"],
+  [/insur/i, "🛡️"],
+  [/tax/i, "📋"],
+  [/sport|gym|fitness/i, "🏋️"],
+  [/baby|child|kid/i, "👶"],
+  [/pet|animal|vet/i, "🐶"],
+  [/travel|holiday|vacation|flight|hotel/i, "✈️"],
+  [/gift|donation|charity/i, "🎁"],
+  [/coffee|cafe|tea|drink|beverage/i, "☕"],
+  [/salary|wage|pay/i, "💼"],
+  [/bonus/i, "🎁"],
+  [/invest|dividend|stock|interest/i, "📈"],
+  [/freelance|gig|side/i, "💻"],
+];
+
+function guessIcon(name, type) {
+  const match = CATEGORY_ICONS.find(([re]) => re.test(name));
+  if (match) return match[1];
+  return type === "income" ? "💰" : "🏷️";
+}
+
 const pad = (n) => String(n).padStart(2, "0");
 
 function daysInMonth(year, month) {
@@ -140,6 +171,23 @@ async function handleApi(request, env, path) {
   }
 
   let m = path.match(/^\/api\/categories\/(\d+)$/);
+  if (m && method === "PUT") {
+    const id = Number(m[1]);
+    const body = await readBody(request);
+    if (!body) return badRequest("Invalid JSON body");
+    const fields = [];
+    const binds = [];
+    if (typeof body.name === "string" && body.name.trim()) { fields.push("name = ?"); binds.push(body.name.trim()); }
+    if (typeof body.icon === "string") { fields.push("icon = ?"); binds.push(body.icon); }
+    if (typeof body.color === "string") { fields.push("color = ?"); binds.push(body.color); }
+    if (!fields.length) return badRequest("Nothing to update");
+    binds.push(id);
+    const result = await DB.prepare(`UPDATE categories SET ${fields.join(", ")} WHERE id = ? RETURNING *`)
+      .bind(...binds).first();
+    if (!result) return json({ error: "Not found" }, 404);
+    return json(result);
+  }
+
   if (m && method === "DELETE") {
     const id = Number(m[1]);
     const used = await DB.prepare("SELECT 1 FROM transactions WHERE category_id = ? LIMIT 1").bind(id).first();
@@ -153,7 +201,18 @@ async function handleApi(request, env, path) {
   // --- Transactions ---
   if (path === "/api/transactions" && method === "GET") {
     const month = url.searchParams.get("month");
-    if (!month || !MONTH_RE.test(month)) return badRequest("month query param must be YYYY-MM");
+    const year = url.searchParams.get("year");
+    if (year && /^\d{4}$/.test(year)) {
+      const { results } = await DB.prepare(
+        `SELECT t.id, t.type, t.amount, t.category_id, t.note, t.date, t.orig_amount, t.orig_currency,
+                c.name AS category_name, c.icon AS category_icon, c.color AS category_color
+         FROM transactions t JOIN categories c ON c.id = t.category_id
+         WHERE substr(t.date, 1, 4) = ?
+         ORDER BY t.date DESC, t.id DESC`
+      ).bind(year).all();
+      return json(results);
+    }
+    if (!month || !MONTH_RE.test(month)) return badRequest("month or year query param required");
     const { results } = await DB.prepare(
       `SELECT t.id, t.type, t.amount, t.category_id, t.note, t.date, t.orig_amount, t.orig_currency,
               c.name AS category_name, c.icon AS category_icon, c.color AS category_color
@@ -210,17 +269,20 @@ async function handleApi(request, env, path) {
   // --- Summary ---
   if (path === "/api/summary" && method === "GET") {
     const month = url.searchParams.get("month");
-    if (!month || !MONTH_RE.test(month)) return badRequest("month query param must be YYYY-MM");
+    const year = url.searchParams.get("year");
+    const dateCol = year ? "substr(date, 1, 4)" : "substr(date, 1, 7)";
+    const dateVal = year && /^\d{4}$/.test(year) ? year : month;
+    if (!dateVal || (!year && !MONTH_RE.test(month))) return badRequest("month or year query param required");
     const totalsQ = DB.prepare(
-      "SELECT type, SUM(amount) AS total FROM transactions WHERE substr(date, 1, 7) = ? GROUP BY type"
-    ).bind(month);
+      `SELECT type, SUM(amount) AS total FROM transactions WHERE ${dateCol} = ? GROUP BY type`
+    ).bind(dateVal);
     const byCategoryQ = DB.prepare(
       `SELECT c.id, c.name, c.icon, c.color, t.type, SUM(t.amount) AS total
        FROM transactions t JOIN categories c ON c.id = t.category_id
-       WHERE substr(t.date, 1, 7) = ?
+       WHERE ${dateCol} = ?
        GROUP BY c.id, t.type
        ORDER BY total DESC`
-    ).bind(month);
+    ).bind(dateVal);
     const [totals, byCategory] = await DB.batch([totalsQ, byCategoryQ]);
     let income = 0;
     let expense = 0;
@@ -231,8 +293,20 @@ async function handleApi(request, env, path) {
     return json({ income, expense, balance: income - expense, by_category: byCategory.results });
   }
 
-  // --- Trend (last N months) ---
+  // --- Trend (last N months/years) ---
   if (path === "/api/trend" && method === "GET") {
+    const year = url.searchParams.get("year");
+    if (year && /^\d{4}$/.test(year)) {
+      const startYear = Number(year) - 5;
+      const { results } = await DB.prepare(
+        `SELECT substr(date, 1, 7) AS month, type, SUM(amount) AS total
+         FROM transactions
+         WHERE substr(date, 1, 4) BETWEEN ? AND ?
+         GROUP BY month, type
+         ORDER BY month`
+      ).bind(String(startYear), year).all();
+      return json(results);
+    }
     const months = Math.min(Math.max(Number(url.searchParams.get("months")) || 6, 1), 24);
     const end = url.searchParams.get("month");
     if (!end || !MONTH_RE.test(end)) return badRequest("month query param must be YYYY-MM");
@@ -402,6 +476,23 @@ async function handleApi(request, env, path) {
     const { results: cats } = await DB.prepare("SELECT id, name, type FROM categories").all();
     const catMap = new Map(cats.map((c) => [`${c.type}:${c.name.toLowerCase()}`, c.id]));
 
+    function fuzzyMatchCategory(name, type) {
+      const needle = name.toLowerCase();
+      const exact = `${type}:${needle}`;
+      if (catMap.has(exact)) return exact;
+      let best = null;
+      let bestLen = 0;
+      for (const key of catMap.keys()) {
+        if (!key.startsWith(type + ":")) continue;
+        const existing = key.slice(type.length + 1);
+        if (existing.startsWith(needle) || needle.startsWith(existing)) {
+          const overlap = Math.min(existing.length, needle.length);
+          if (overlap > bestLen) { best = key; bestLen = overlap; }
+        }
+      }
+      return best;
+    }
+
     const valid = [];
     let skipped = 0;
     const skipReasons = {};
@@ -423,23 +514,27 @@ async function handleApi(request, env, path) {
     }
 
     for (const row of valid) {
-      const key = `${row.type}:${row.category.toLowerCase()}`;
-      if (!catMap.has(key)) {
+      const matched = fuzzyMatchCategory(row.category, row.type);
+      if (matched) {
+        row._catKey = matched;
+      } else {
+        const key = `${row.type}:${row.category.toLowerCase()}`;
         const cat = await DB.prepare(
           `INSERT INTO categories (name, type, icon, color, sort_order)
            VALUES (?1, ?2, ?3, ?4, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM categories WHERE type = ?2))
            RETURNING id`
         )
-          .bind(row.category, row.type, row.type === "income" ? "💰" : "📦", "#78909c")
+          .bind(row.category, row.type, guessIcon(row.category, row.type), "#78909c")
           .first();
         catMap.set(key, cat.id);
+        row._catKey = key;
       }
     }
 
     const stmts = valid.map((row) =>
       DB.prepare(
         "INSERT INTO transactions (type, amount, category_id, note, date) VALUES (?, ?, ?, ?, ?)"
-      ).bind(row.type, row.amount, catMap.get(`${row.type}:${row.category.toLowerCase()}`), row.note, row.date)
+      ).bind(row.type, row.amount, catMap.get(row._catKey), row.note, row.date)
     );
     // D1 batch limit safety: chunk inserts
     for (let i = 0; i < stmts.length; i += 100) {

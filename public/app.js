@@ -1,5 +1,6 @@
 const state = {
   month: new Date().toISOString().slice(0, 7),
+  viewMode: "monthly",
   categories: [],
   transactions: [],
   summary: { income: 0, expense: 0, balance: 0, by_category: [] },
@@ -79,7 +80,11 @@ function renderSummary() {
   $("#sum-income").textContent = fmt.format(income);
   $("#sum-expense").textContent = fmt.format(expense);
   $("#sum-balance").textContent = fmt.format(balance);
-  $("#month-label").textContent = monthLabel(state.month);
+  if (state.viewMode === "yearly") {
+    $("#month-label").textContent = state.month.slice(0, 4);
+  } else {
+    $("#month-label").textContent = monthLabel(state.month);
+  }
 }
 
 function renderTransactions() {
@@ -128,11 +133,23 @@ function renderTransactions() {
   }
 }
 
+function scaleCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Number(canvas.dataset.w || (canvas.dataset.w = canvas.getAttribute("width")));
+  const h = Number(canvas.dataset.h || (canvas.dataset.h = canvas.getAttribute("height")));
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + "px";
+  canvas.style.height = h + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  return { ctx, w, h };
+}
+
 function renderDonut() {
   const canvas = $("#donut-chart");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const { ctx, w: cw, h: ch } = scaleCanvas(canvas);
 
   const rows = state.summary.by_category.filter((r) => r.type === state.statsType);
   const total = rows.reduce((s, r) => s + r.total, 0);
@@ -140,8 +157,8 @@ function renderDonut() {
   legend.innerHTML = "";
   renderRanking(rows, total);
 
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
+  const cx = cw / 2;
+  const cy = ch / 2;
   const radius = 70;
 
   if (!total) {
@@ -220,10 +237,37 @@ function renderRanking(rows, total) {
 async function renderTrend() {
   const canvas = $("#trend-chart");
   if (!canvas) return;
-  const rows = await api(`/api/trend?month=${state.month}&months=6`);
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const { ctx, w: tw } = scaleCanvas(canvas);
 
+  if (state.viewMode === "yearly") {
+    const year = Number(state.month.slice(0, 4));
+    const rows = await api(`/api/trend?year=${year}`);
+    const months = [];
+    for (let m = 1; m <= 12; m++) months.push(`${year}-${String(m).padStart(2, "0")}`);
+    const data = months.map((m) => {
+      const income = rows.find((r) => r.month === m && r.type === "income")?.total || 0;
+      const expense = rows.find((r) => r.month === m && r.type === "expense")?.total || 0;
+      return { month: m, income, expense };
+    });
+    const max = Math.max(...data.map((d) => Math.max(d.income, d.expense)), 1);
+    const chartH = 140, baseY = 150, groupW = tw / 12;
+    ctx.font = "9px sans-serif";
+    ctx.textAlign = "center";
+    data.forEach((d, i) => {
+      const x = i * groupW + groupW / 2;
+      const incomeH = (d.income / max) * chartH;
+      const expenseH = (d.expense / max) * chartH;
+      ctx.fillStyle = cssVar("--income");
+      ctx.fillRect(x - 7, baseY - incomeH, 6, incomeH);
+      ctx.fillStyle = cssVar("--expense");
+      ctx.fillRect(x + 1, baseY - expenseH, 6, expenseH);
+      ctx.fillStyle = cssVar("--text-muted");
+      ctx.fillText(d.month.slice(5), x, baseY + 12);
+    });
+    return;
+  }
+
+  const rows = await api(`/api/trend?month=${state.month}&months=6`);
   const months = [];
   for (let i = 5; i >= 0; i--) months.push(shiftMonth(state.month, -i));
   const data = months.map((m) => {
@@ -235,7 +279,7 @@ async function renderTrend() {
   const max = Math.max(...data.map((d) => Math.max(d.income, d.expense)), 1);
   const chartH = 140;
   const baseY = 150;
-  const groupW = canvas.width / 6;
+  const groupW = tw / 6;
 
   ctx.font = "10px sans-serif";
   ctx.textAlign = "center";
@@ -508,9 +552,12 @@ async function submitEditor() {
 
 async function loadMonth() {
   renderSummary();
+  const q = state.viewMode === "yearly"
+    ? `year=${state.month.slice(0, 4)}`
+    : `month=${state.month}`;
   const [transactions, summary] = await Promise.all([
-    api(`/api/transactions?month=${state.month}`),
-    api(`/api/summary?month=${state.month}`),
+    api(`/api/transactions?${q}`),
+    api(`/api/summary?${q}`),
   ]);
   state.transactions = transactions;
   state.summary = summary;
@@ -524,13 +571,22 @@ async function loadMonth() {
 // --- Events ---
 
 $("#prev-month").addEventListener("click", () => {
-  state.month = shiftMonth(state.month, -1);
+  state.month = shiftMonth(state.month, state.viewMode === "yearly" ? -12 : -1);
   loadMonth();
 });
 
 $("#next-month").addEventListener("click", () => {
-  state.month = shiftMonth(state.month, 1);
+  state.month = shiftMonth(state.month, state.viewMode === "yearly" ? 12 : 1);
   loadMonth();
+});
+
+document.querySelectorAll(".view-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".view-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.viewMode = btn.dataset.view;
+    loadMonth();
+  });
 });
 
 $("#theme-toggle").addEventListener("click", () => {
@@ -642,6 +698,8 @@ function renderCatSettings() {
     row.querySelector(".cat-row-icon").textContent = cat.icon;
     row.querySelector(".cat-row-icon").style.background = cat.color;
     row.querySelector(".cat-row-name").textContent = cat.name;
+    row.querySelector(".cat-row-icon").addEventListener("click", () => openCatModal("settings", cat.type, cat));
+    row.querySelector(".cat-row-name").addEventListener("click", () => openCatModal("settings", cat.type, cat));
     row.querySelector(".row-delete").addEventListener("click", async () => {
       if (!confirm(`Delete category "${cat.name}"?`)) return;
       try {
@@ -704,7 +762,7 @@ if (window.Sortable) {
 
 // --- Category modal ---
 
-const catModal = { type: "expense", icon: ICON_CHOICES[0], color: COLOR_CHOICES[0] };
+const catModal = { editId: null, type: "expense", icon: ICON_CHOICES[0], color: COLOR_CHOICES[0] };
 
 function showModal(id) {
   $("#modal-backdrop").classList.remove("hidden");
@@ -751,10 +809,20 @@ function setCatModalType(type) {
 
 let catModalSource = "settings";
 
-function openCatModal(source, type) {
+function openCatModal(source, type, editCat) {
   catModalSource = source;
-  $("#cat-name").value = "";
+  catModal.editId = editCat ? editCat.id : null;
+  $("#cat-name").value = editCat ? editCat.name : "";
+  $("#cat-modal .modal-header h2").textContent = editCat ? "Edit category" : "Add category";
+  $("#cat-modal .type-toggle").classList.toggle("hidden", !!editCat);
   setCatModalType(type);
+  if (editCat) {
+    catModal.icon = editCat.icon;
+    catModal.color = editCat.color;
+  } else {
+    catModal.icon = ICON_CHOICES[0];
+    catModal.color = COLOR_CHOICES[0];
+  }
   renderIconGrid();
   renderColorGrid();
   showModal("#cat-modal");
@@ -771,22 +839,34 @@ $("#cat-save").addEventListener("click", async () => {
   const name = $("#cat-name").value.trim();
   if (!name) { alert("Please enter a name"); return; }
   try {
-    const created = await api("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, type: catModal.type, icon: catModal.icon, color: catModal.color }),
-    });
-    hideModals();
-    await reloadCategories();
-    if (catModalSource === "editor") {
-      state.selectedCategoryId = created.id;
-      setFormType(catModal.type);
-    } else {
-      state.catSettingsType = catModal.type;
-      document.querySelectorAll(".cat-type-btn").forEach((b) => {
-        b.classList.toggle("active", b.dataset.type === catModal.type);
+    if (catModal.editId) {
+      await api(`/api/categories/${catModal.editId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, icon: catModal.icon, color: catModal.color }),
       });
+      hideModals();
+      await reloadCategories();
       renderCatSettings();
+      loadMonth();
+    } else {
+      const created = await api("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, type: catModal.type, icon: catModal.icon, color: catModal.color }),
+      });
+      hideModals();
+      await reloadCategories();
+      if (catModalSource === "editor") {
+        state.selectedCategoryId = created.id;
+        setFormType(catModal.type);
+      } else {
+        state.catSettingsType = catModal.type;
+        document.querySelectorAll(".cat-type-btn").forEach((b) => {
+          b.classList.toggle("active", b.dataset.type === catModal.type);
+        });
+        renderCatSettings();
+      }
     }
   } catch (err) {
     alert(err.message);
@@ -1090,7 +1170,8 @@ const IMPORT_HEADER_ALIASES = {
 
 function mapImportRow(raw) {
   const lower = {};
-  for (const [k, v] of Object.entries(raw)) lower[String(k).trim().toLowerCase()] = v;
+  const strip = (s) => String(s).trim().replace(/^["']+|["']+$/g, "").trim();
+  for (const [k, v] of Object.entries(raw)) lower[strip(k).toLowerCase()] = typeof v === "string" ? strip(v) : v;
   const pick = (field) => {
     for (const alias of IMPORT_HEADER_ALIASES[field]) {
       if (alias in lower && lower[alias] !== "") return lower[alias];
