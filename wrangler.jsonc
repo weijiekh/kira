@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kira",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-01",
+  "triggers": {
+    "crons": ["0 0 * * *"]
+  },
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kira-db",
+      // Replace with the real ID from `wrangler d1 create money-manager-db` before deploying.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

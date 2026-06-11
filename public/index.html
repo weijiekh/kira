@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#fdd835">
+  <title>Kira</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg">
+  <link rel="apple-touch-icon" href="/logo.svg">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <div class="header-top">
+        <div class="brand">
+          <img src="/logo.svg" alt="" class="logo">
+          <h1>Kira</h1>
+        </div>
+        <button id="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+      </div>
+      <div class="month-nav">
+        <button id="prev-month" aria-label="Previous month">‹</button>
+        <span id="month-label"></span>
+        <button id="next-month" aria-label="Next month">›</button>
+      </div>
+    </header>
+
+    <div class="summary-card">
+      <div class="summary-item">
+        <span class="summary-label">Income</span>
+        <span class="summary-value income" id="sum-income">0</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Expenses</span>
+        <span class="summary-value expense" id="sum-expense">0</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Balance</span>
+        <span class="summary-value" id="sum-balance">0</span>
+      </div>
+    </div>
+
+    <main>
+      <section id="tab-transactions" class="tab active">
+        <div id="tx-list"></div>
+        <div id="tx-empty" class="empty-state hidden">
+          <div class="empty-icon">🗒️</div>
+          No Data Available<br><small>Tap + to record an expense</small>
+        </div>
+      </section>
+
+      <section id="tab-stats" class="tab">
+        <div class="card">
+          <div class="stats-toggle">
+            <button class="stats-type-btn active" data-type="expense">Expenses</button>
+            <button class="stats-type-btn" data-type="income">Income</button>
+          </div>
+          <div class="donut-row">
+            <canvas id="donut-chart" width="150" height="150"></canvas>
+            <div id="donut-legend"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Ranking</h2>
+          <div id="stats-ranking"></div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Last 6 months</h2>
+          <canvas id="trend-chart" width="340" height="180"></canvas>
+        </div>
+      </section>
+
+      <section id="tab-budget" class="tab">
+        <div class="card">
+          <h2 class="card-title">Monthly budgets</h2>
+          <div id="budget-list"></div>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="tab">
+        <div class="card">
+          <h2 class="card-title">Preferences</h2>
+          <div class="setting-row">
+            <div class="setting-icon">💱</div>
+            <div class="setting-info">
+              <div class="setting-name">Currency</div>
+              <div class="setting-sub">Used to display all amounts</div>
+            </div>
+            <select id="currency-select" class="setting-select"></select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-icon">🌓</div>
+            <div class="setting-info">
+              <div class="setting-name">Dark mode</div>
+              <div class="setting-sub">Easier on the eyes at night</div>
+            </div>
+            <input type="checkbox" id="dark-toggle" class="switch" aria-label="Dark mode">
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Categories</h2>
+          <div class="settings-type-tabs">
+            <button class="cat-type-btn active" data-type="expense">Expenses</button>
+            <button class="cat-type-btn" data-type="income">Income</button>
+          </div>
+          <div id="cat-settings-list"></div>
+          <button id="add-category-btn" class="add-row-btn">＋ Add new category</button>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Recurring transactions</h2>
+          <div id="recurring-list"></div>
+          <button id="add-recurring-btn" class="add-row-btn">＋ Add recurring transaction</button>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Currency converter</h2>
+          <div class="conv-row">
+            <input type="number" id="conv-amount" inputmode="decimal" min="0" step="0.01" value="1" aria-label="Amount">
+            <select id="conv-from" class="setting-select" aria-label="From currency"></select>
+          </div>
+          <button id="conv-swap" aria-label="Swap currencies">⇅</button>
+          <div class="conv-row">
+            <output id="conv-result">—</output>
+            <select id="conv-to" class="setting-select" aria-label="To currency"></select>
+          </div>
+          <p id="conv-rate" class="data-hint">Live ECB reference rates, updated daily.</p>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Data</h2>
+          <button id="export-csv" class="setting-row action-row">
+            <div class="setting-icon">📤</div>
+            <div class="setting-info">
+              <div class="setting-name">Export as CSV</div>
+              <div class="setting-sub">All transactions, opens in any editor</div>
+            </div>
+            <span class="chevron">›</span>
+          </button>
+          <button id="export-xlsx" class="setting-row action-row">
+            <div class="setting-icon">📊</div>
+            <div class="setting-info">
+              <div class="setting-name">Export as Excel</div>
+              <div class="setting-sub">.xlsx workbook</div>
+            </div>
+            <span class="chevron">›</span>
+          </button>
+          <button id="import-file" class="setting-row action-row">
+            <div class="setting-icon">📥</div>
+            <div class="setting-info">
+              <div class="setting-name">Import CSV / Excel</div>
+              <div class="setting-sub">Also accepts exports from other money apps</div>
+            </div>
+            <span class="chevron">›</span>
+          </button>
+          <input type="file" id="import-input" accept=".csv,.xlsx,.xls" class="hidden">
+          <p id="import-status" class="data-hint"></p>
+        </div>
+      </section>
+    </main>
+
+    <button id="fab" aria-label="Add transaction">＋</button>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-tab="transactions">📋<span>Records</span></button>
+      <button class="nav-btn" data-tab="stats">📊<span>Stats</span></button>
+      <button class="nav-btn" data-tab="budget">🎯<span>Budget</span></button>
+      <button class="nav-btn" data-tab="settings">⚙️<span>More</span></button>
+    </nav>
+  </div>
+
+  <div id="modal-backdrop" class="hidden">
+    <div id="cat-modal" class="sheet-modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h2>Add category</h2>
+        <button class="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="type-toggle">
+        <button type="button" class="cat-modal-type expense-btn active" data-type="expense">Expense</button>
+        <button type="button" class="cat-modal-type income-btn" data-type="income">Income</button>
+      </div>
+      <label class="field">
+        <span>Name</span>
+        <input type="text" id="cat-name" maxlength="40" placeholder="Category name">
+      </label>
+      <span class="field-label">Icon</span>
+      <div id="icon-grid"></div>
+      <span class="field-label">Color</span>
+      <div id="color-grid"></div>
+      <div class="modal-actions">
+        <button type="button" id="cat-save" class="primary">Save</button>
+      </div>
+    </div>
+
+    <div id="rec-modal" class="sheet-modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h2>Add recurring transaction</h2>
+        <button class="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="type-toggle">
+        <button type="button" class="rec-modal-type expense-btn active" data-type="expense">Expense</button>
+        <button type="button" class="rec-modal-type income-btn" data-type="income">Income</button>
+      </div>
+      <label class="field">
+        <span>Category</span>
+        <select id="rec-category"></select>
+      </label>
+      <label class="field">
+        <span>Amount</span>
+        <input type="number" id="rec-amount" step="0.01" min="0.01" inputmode="decimal" placeholder="0.00">
+      </label>
+      <label class="field">
+        <span>Note</span>
+        <input type="text" id="rec-note" maxlength="200" placeholder="e.g. Rent, Salary">
+      </label>
+      <label class="field">
+        <span>Repeats</span>
+        <select id="rec-frequency">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly" selected>Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Starts on</span>
+        <input type="date" id="rec-start">
+      </label>
+      <label class="field">
+        <span>Ends on (optional)</span>
+        <input type="date" id="rec-end">
+      </label>
+      <div class="modal-actions">
+        <button type="button" id="rec-save" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editor" class="hidden">
+    <header class="editor-header">
+      <button id="editor-back" aria-label="Back">←</button>
+      <div class="editor-type-tabs">
+        <button class="type-tab active" data-type="expense">Expenses</button>
+        <button class="type-tab" data-type="income">Income</button>
+      </div>
+      <button id="editor-delete" class="hidden" aria-label="Delete">🗑️</button>
+    </header>
+
+    <div id="editor-categories"></div>
+
+    <div class="keypad-section">
+      <div class="memo-bar">
+        <span id="memo-cat-icon" class="memo-cat-icon">🍔</span>
+        <input type="text" id="memo-input" maxlength="200" placeholder="Memo">
+        <select id="entry-currency" class="currency-chip" aria-label="Entry currency"></select>
+        <span id="amount-display">0</span>
+      </div>
+      <div id="conv-hint" class="conv-hint hidden"></div>
+      <div class="keypad">
+        <button class="key" data-key="7">7</button>
+        <button class="key" data-key="8">8</button>
+        <button class="key" data-key="9">9</button>
+        <button class="key key-date" id="key-date">
+          <span id="date-label">Today</span>
+          <small id="date-sublabel"></small>
+          <input type="date" id="date-input" tabindex="-1">
+        </button>
+        <button class="key" data-key="4">4</button>
+        <button class="key" data-key="5">5</button>
+        <button class="key" data-key="6">6</button>
+        <button class="key key-op" data-key="+">＋</button>
+        <button class="key" data-key="1">1</button>
+        <button class="key" data-key="2">2</button>
+        <button class="key" data-key="3">3</button>
+        <button class="key key-op" data-key="-">－</button>
+        <button class="key" data-key=".">.</button>
+        <button class="key" data-key="0">0</button>
+        <button class="key" data-key="back">⌫</button>
+        <button class="key key-confirm" id="key-confirm">✓</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/vendor/sortable.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
