@@ -14,8 +14,8 @@
     {
       "binding": "DB",
       "database_name": "kira-db",
-      // Replace with the real ID from `wrangler d1 create money-manager-db` before deploying.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // Replace with the real ID from `wrangler d1 create kira-db` before deploying.
+      "database_id": "fa1972f7-4cab-4079-9e08-ebac15a57dc4",
       "migrations_dir": "migrations"
     }
   ]

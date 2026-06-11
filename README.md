@@ -56,7 +56,7 @@ A free Cloudflare account is enough (Workers free tier + D1 free tier).
 npx wrangler login                           # one-time browser auth
 
 # 1. Create the production database
-npx wrangler d1 create money-manager-db
+npx wrangler d1 create kira-db
 #    Copy the printed database_id into wrangler.jsonc (d1_databases[0].database_id)
 
 # 2. Apply migrations to the remote DB
@@ -90,7 +90,7 @@ date,type,category,amount,note
 2026-06-08,expense,Travel,43.34,Paris dinner
 ```
 
-Exports from other money-manager apps usually work as-is. The importer accepts:
+Exports from other kira apps usually work as-is. The importer accepts:
 
 - Header aliases: `Income/Expense` → type, `Memo`/`Description`/`Remarks` → note,
   `Subcategory` (merged into the note), etc.
