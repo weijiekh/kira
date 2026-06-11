@@ -404,6 +404,7 @@ async function handleApi(request, env, path) {
 
     const valid = [];
     let skipped = 0;
+    const skipReasons = {};
     for (const row of body.rows) {
       const type = row.type === "income" ? "income" : row.type === "expense" ? "expense" : null;
       const amount = Number(row.amount);
@@ -411,6 +412,11 @@ async function handleApi(request, env, path) {
       const category = typeof row.category === "string" ? row.category.trim() : "";
       if (!type || !Number.isFinite(amount) || amount <= 0 || !DATE_RE.test(date) || !category) {
         skipped++;
+        const reason = !type ? "unrecognized type"
+          : !Number.isFinite(amount) || amount <= 0 ? "invalid amount"
+          : !DATE_RE.test(date) ? "invalid date"
+          : "missing category";
+        skipReasons[reason] = (skipReasons[reason] || 0) + 1;
         continue;
       }
       valid.push({ type, amount, date, category, note: typeof row.note === "string" ? row.note : "" });
@@ -439,7 +445,7 @@ async function handleApi(request, env, path) {
     for (let i = 0; i < stmts.length; i += 100) {
       await DB.batch(stmts.slice(i, i + 100));
     }
-    return json({ imported: valid.length, skipped });
+    return json({ imported: valid.length, skipped, skipReasons });
   }
 
   return json({ error: "Not found" }, 404);

@@ -1102,7 +1102,7 @@ function mapImportRow(raw) {
   const amountRaw = String(pick("amount")).replace(/[^0-9.,-]/g, "").replace(/,/g, "");
   const amountNum = Number(amountRaw);
 
-  let type = String(pick("type")).trim().toLowerCase();
+  let type = String(pick("type")).trim().toLowerCase().replace(/^[^a-z]+/, "");
   if (/^(income|in|credit|deposit|revenue)/.test(type)) type = "income";
   else if (/^(expense|exp|spending|out|debit|withdrawal)/.test(type)) type = "expense";
   else if (!type) type = amountNum < 0 ? "expense" : "income"; // signed-amount exports
@@ -1139,9 +1139,18 @@ $("#import-input").addEventListener("change", async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rows }),
     });
-    status.textContent = `Imported ${result.imported} transaction(s), skipped ${result.skipped}.`;
+    let msg = `Imported ${result.imported} transaction(s), skipped ${result.skipped}.`;
+    if (result.skipped > 0 && result.skipReasons) {
+      const details = Object.entries(result.skipReasons).map(([r, n]) => `${n} ${r}`).join(", ");
+      msg += `\nSkipped: ${details}.`;
+    }
+    status.textContent = msg;
     await reloadCategories();
     renderSettings();
+    if (result.imported > 0) {
+      const dates = rows.map((r) => r.date).filter((d) => /^\d{4}-\d{2}/.test(d)).sort();
+      if (dates.length) state.month = dates[0].slice(0, 7);
+    }
     loadMonth();
   } catch (err) {
     status.textContent = "Import failed: " + err.message;
