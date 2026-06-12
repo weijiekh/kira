@@ -85,6 +85,7 @@ function renderSummary() {
   } else {
     $("#month-label").textContent = monthLabel(state.month);
   }
+  if (typeof updateTodayBtn === "function") updateTodayBtn();
 }
 
 function renderTransactions() {
@@ -570,6 +571,14 @@ async function loadMonth() {
 
 // --- Events ---
 
+function updateTodayBtn() {
+  const now = new Date().toISOString().slice(0, 7);
+  const isCurrent = state.viewMode === "yearly"
+    ? state.month.slice(0, 4) === now.slice(0, 4)
+    : state.month === now;
+  $("#month-label").classList.toggle("not-current", !isCurrent);
+}
+
 $("#prev-month").addEventListener("click", () => {
   state.month = shiftMonth(state.month, state.viewMode === "yearly" ? -12 : -1);
   loadMonth();
@@ -579,6 +588,36 @@ $("#next-month").addEventListener("click", () => {
   state.month = shiftMonth(state.month, state.viewMode === "yearly" ? 12 : 1);
   loadMonth();
 });
+
+$("#month-label").addEventListener("click", () => {
+  const now = new Date().toISOString().slice(0, 7);
+  const isCurrent = state.viewMode === "yearly"
+    ? state.month.slice(0, 4) === now.slice(0, 4)
+    : state.month === now;
+  if (!isCurrent) {
+    state.month = now;
+    loadMonth();
+  }
+});
+
+// Swipe navigation
+{
+  let touchStartX = 0;
+  let touchStartY = 0;
+  const main = document.querySelector("main");
+  main.addEventListener("touchstart", (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  main.addEventListener("touchend", (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
+    const step = state.viewMode === "yearly" ? 12 : 1;
+    state.month = shiftMonth(state.month, dx < 0 ? step : -step);
+    loadMonth();
+  }, { passive: true });
+}
 
 document.querySelectorAll(".view-btn").forEach((btn) => {
   btn.addEventListener("click", () => {

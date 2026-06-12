@@ -90,6 +90,9 @@ button { font-family: inherit; color: inherit; }
 
 #month-label { font-size: 16px; font-weight: 500; min-width: 140px; text-align: center; }
 
+#month-label { cursor: pointer; }
+#month-label.not-current { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+
 .view-toggle {
   display: flex;
   justify-content: center;
