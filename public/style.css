@@ -40,7 +40,7 @@ body {
   color: var(--text);
   max-width: 480px;
   margin: 0 auto;
-  padding-bottom: 64px;
+  padding-bottom: 80px;
 }
 
 .hidden { display: none !important; }
@@ -131,8 +131,8 @@ button { font-family: inherit; color: inherit; }
 }
 
 .summary-item { flex: 1; text-align: center; }
-.summary-label { display: block; font-size: 12px; color: var(--text-muted); }
-.summary-value { display: block; font-size: 15px; font-weight: 700; margin-top: 4px; }
+.summary-label { display: block; font-size: 13px; color: var(--text-muted); }
+.summary-value { display: block; font-size: 16px; font-weight: 700; margin-top: 4px; }
 .summary-value.income { color: var(--income); }
 .summary-value.expense { color: var(--expense); }
 
@@ -164,7 +164,7 @@ main.slide-right {
   margin-bottom: 12px;
 }
 
-.card-title { font-size: 13px; color: var(--text-muted); font-weight: 500; margin-bottom: 10px; }
+.card-title { font-size: 15px; color: var(--text-muted); font-weight: 500; margin-bottom: 10px; }
 
 .empty-state {
   text-align: center;
@@ -274,21 +274,21 @@ main.slide-right {
 .legend-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .legend-pct { color: var(--text-muted); font-size: 12px; }
 
-.ranking-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
+.ranking-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 14px; }
 .ranking-icon {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--circle);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 18px;
   flex-shrink: 0;
 }
 .ranking-info { flex: 1; min-width: 0; }
 .ranking-name { font-weight: 500; }
-.ranking-bar { height: 5px; background: var(--circle); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+.ranking-bar { height: 6px; background: var(--circle); border-radius: 3px; margin-top: 4px; overflow: hidden; }
 .ranking-fill { height: 100%; border-radius: 3px; }
 .ranking-amount { font-weight: 600; }
 
@@ -299,7 +299,7 @@ main.slide-right {
 .budget-item + .budget-item { border-top: 1px solid var(--border); }
 
 .budget-top { display: flex; align-items: center; gap: 10px; }
-.budget-name { flex: 1; font-size: 14px; font-weight: 500; }
+.budget-name { flex: 1; font-size: 15px; font-weight: 500; }
 
 .budget-input {
   width: 90px;
@@ -434,8 +434,8 @@ button.action-row:active .setting-name { color: var(--accent-text); }
 }
 
 .setting-info { flex: 1; min-width: 0; }
-.setting-name { font-size: 14px; font-weight: 500; }
-.setting-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.setting-name { font-size: 15px; font-weight: 500; }
+.setting-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
 .chevron { color: var(--text-muted); font-size: 18px; }
 

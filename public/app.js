@@ -609,12 +609,12 @@ async function navigateMonth(direction) {
 {
   let touchStartX = 0;
   let touchStartY = 0;
-  const main = document.querySelector("main");
-  main.addEventListener("touchstart", (e) => {
+  const swipeTarget = document.getElementById("app");
+  swipeTarget.addEventListener("touchstart", (e) => {
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
   }, { passive: true });
-  main.addEventListener("touchend", (e) => {
+  swipeTarget.addEventListener("touchend", (e) => {
     const dx = e.changedTouches[0].clientX - touchStartX;
     const dy = e.changedTouches[0].clientY - touchStartY;
     if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
