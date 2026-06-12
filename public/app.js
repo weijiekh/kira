@@ -1345,7 +1345,14 @@ $("#import-input").addEventListener("change", async (e) => {
 
 // --- Init ---
 
+function syncNavHeight() {
+  const nav = document.querySelector(".bottom-nav");
+  if (nav) document.documentElement.style.setProperty("--nav-height", nav.offsetHeight + "px");
+}
+window.addEventListener("resize", syncNavHeight);
+
 (async function init() {
+  syncNavHeight();
   const theme = localStorage.getItem("theme") ||
     (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   applyTheme(theme);
