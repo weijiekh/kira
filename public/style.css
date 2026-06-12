@@ -82,13 +82,16 @@ button { font-family: inherit; color: inherit; }
   background: none;
   border: none;
   color: var(--text-muted);
-  width: 32px;
-  height: 32px;
-  font-size: 20px;
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
   cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.15s;
 }
+.month-nav button:active { background: var(--circle); }
 
-#month-label { font-size: 16px; font-weight: 500; min-width: 140px; text-align: center; }
+#month-label { font-size: 17px; font-weight: 600; min-width: 140px; text-align: center; }
 
 #month-label { cursor: pointer; }
 #month-label.not-current { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
@@ -103,8 +106,8 @@ button { font-family: inherit; color: inherit; }
   background: none;
   border: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 12px;
-  padding: 3px 14px;
+  font-size: 13px;
+  padding: 6px 18px;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -534,11 +537,14 @@ button.action-row:active .setting-name { color: var(--accent-text); }
 .modal-close {
   border: none;
   background: none;
-  font-size: 17px;
+  font-size: 20px;
   cursor: pointer;
   color: var(--text-muted);
-  padding: 4px 8px;
+  padding: 8px 12px;
+  border-radius: 50%;
+  transition: background 0.15s;
 }
+.modal-close:active { background: var(--circle); }
 
 .type-toggle { display: flex; gap: 8px; margin-bottom: 12px; }
 
@@ -689,10 +695,10 @@ button.primary { background: var(--accent); color: var(--accent-text); }
 
 .nav-btn {
   flex: 1;
-  padding: 8px 0 10px;
+  padding: 10px 0 12px;
   border: none;
   background: none;
-  font-size: 17px;
+  font-size: 20px;
   cursor: pointer;
   color: var(--text-muted);
   display: flex;
@@ -703,7 +709,7 @@ button.primary { background: var(--accent); color: var(--accent-text); }
   opacity: 0.6;
 }
 
-.nav-btn span { font-size: 10px; }
+.nav-btn span { font-size: 11px; }
 .nav-btn.active { color: var(--text); font-weight: 600; filter: none; opacity: 1; }
 
 /* ---- Full-screen editor ---- */
