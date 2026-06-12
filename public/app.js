@@ -593,16 +593,16 @@ $("#month-label").addEventListener("click", () => {
   }
 });
 
-function navigateMonth(direction) {
+async function navigateMonth(direction) {
   const step = state.viewMode === "yearly" ? 12 : 1;
   state.month = shiftMonth(state.month, direction * step);
+  await loadMonth();
   const main = document.querySelector("main");
   const cls = direction > 0 ? "slide-left" : "slide-right";
   main.classList.remove("slide-left", "slide-right");
   void main.offsetWidth;
   main.classList.add(cls);
   main.addEventListener("animationend", () => main.classList.remove(cls), { once: true });
-  loadMonth();
 }
 
 // Swipe navigation

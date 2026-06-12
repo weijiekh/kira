@@ -137,20 +137,20 @@ button { font-family: inherit; color: inherit; }
 .summary-value.expense { color: var(--expense); }
 
 /* Tabs / cards */
-main { padding: 0 12px 12px; overflow: hidden; }
+main { padding: 0 12px 12px; overflow: hidden; min-height: 40vh; }
 
 main.slide-left {
-  animation: slideLeft 0.2s ease-out;
+  animation: slideLeft 0.15s ease-out;
 }
 main.slide-right {
-  animation: slideRight 0.2s ease-out;
+  animation: slideRight 0.15s ease-out;
 }
 @keyframes slideLeft {
-  from { transform: translateX(40px); opacity: 0.3; }
+  from { transform: translateX(30%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
 @keyframes slideRight {
-  from { transform: translateX(-40px); opacity: 0.3; }
+  from { transform: translateX(-30%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
 .tab { display: none; }
@@ -351,9 +351,9 @@ main.slide-right {
 
 .drag-handle {
   color: var(--text-muted);
-  font-size: 16px;
+  font-size: 18px;
   cursor: grab;
-  padding: 0 2px;
+  padding: 8px 6px;
   touch-action: none;
   flex-shrink: 0;
 }
