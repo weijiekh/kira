@@ -7,7 +7,9 @@ const CATEGORY_ICONS = [
   [/groceries|grocery|supermarket/i, "🛒"],
   [/transport|grab|taxi|uber|mrt|bus|parking|toll|fuel|gas|petrol/i, "🚌"],
   [/shop|cloth|fashion|apparel/i, "🛍️"],
-  [/bill|utilit|electric|water|internet|phone|mobile|telco/i, "🧾"],
+  [/bill|utilit|electric|water|internet/i, "🧾"],
+  [/phone|mobile|telco|telecom|telephone/i, "📱"],
+  [/electron|gadget|tech|computer|laptop/i, "🖥️"],
   [/health|medic|doctor|pharmacy|hospital|clinic/i, "💊"],
   [/entertain|movie|game|concert|stream/i, "🎬"],
   [/edu|school|tuition|course|book|learn/i, "📚"],
@@ -195,6 +197,19 @@ async function handleApi(request, env, path) {
     await DB.prepare("DELETE FROM budgets WHERE category_id = ?").bind(id).run();
     const result = await DB.prepare("DELETE FROM categories WHERE id = ?").bind(id).run();
     if (!result.meta.changes) return json({ error: "Not found" }, 404);
+    return json({ ok: true });
+  }
+
+  if (path === "/api/categories/merge" && method === "POST") {
+    const { sourceId, targetId } = await request.json();
+    if (!sourceId || !targetId || sourceId === targetId) return badRequest("Invalid merge parameters");
+    const src = await DB.prepare("SELECT id, type FROM categories WHERE id = ?").bind(sourceId).first();
+    const tgt = await DB.prepare("SELECT id, type FROM categories WHERE id = ?").bind(targetId).first();
+    if (!src || !tgt) return json({ error: "Category not found" }, 404);
+    if (src.type !== tgt.type) return badRequest("Cannot merge categories of different types");
+    await DB.prepare("UPDATE transactions SET category_id = ? WHERE category_id = ?").bind(targetId, sourceId).run();
+    await DB.prepare("UPDATE budgets SET category_id = ? WHERE category_id = ?").bind(targetId, sourceId).run();
+    await DB.prepare("DELETE FROM categories WHERE id = ?").bind(sourceId).run();
     return json({ ok: true });
   }
 

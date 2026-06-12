@@ -887,6 +887,7 @@ function openCatModal(source, type, editCat) {
     catModal.icon = ICON_CHOICES[0];
     catModal.color = COLOR_CHOICES[0];
   }
+  $("#cat-merge").classList.toggle("hidden", !editCat);
   $("#icon-search").value = "";
   renderIconGrid();
   renderColorGrid();
@@ -901,6 +902,31 @@ document.querySelectorAll(".cat-modal-type").forEach((btn) => {
 });
 
 $("#icon-search").addEventListener("input", (e) => renderIconGrid(e.target.value));
+
+$("#cat-merge").addEventListener("click", async () => {
+  if (!catModal.editId) return;
+  const sameType = state.categories.filter((c) => c.type === catModal.type && c.id !== catModal.editId);
+  if (!sameType.length) { alert("No other categories to merge into"); return; }
+  const choices = sameType.map((c) => `${c.icon} ${c.name}`).join("\n");
+  const picked = prompt(`Merge all transactions into which category?\n\n${choices}\n\nType the category name:`);
+  if (!picked) return;
+  const target = sameType.find((c) => c.name.toLowerCase() === picked.trim().toLowerCase());
+  if (!target) { alert("Category not found. Please type the exact name."); return; }
+  if (!confirm(`Move all transactions from this category to "${target.icon} ${target.name}" and delete this category?`)) return;
+  try {
+    await api("/api/categories/merge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceId: catModal.editId, targetId: target.id }),
+    });
+    hideModals();
+    await reloadCategories();
+    renderCatSettings();
+    loadMonth();
+  } catch (err) {
+    alert(err.message);
+  }
+});
 
 $("#cat-save").addEventListener("click", async () => {
   const name = $("#cat-name").value.trim();
