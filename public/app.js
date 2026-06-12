@@ -579,15 +579,8 @@ function updateTodayBtn() {
   $("#month-label").classList.toggle("not-current", !isCurrent);
 }
 
-$("#prev-month").addEventListener("click", () => {
-  state.month = shiftMonth(state.month, state.viewMode === "yearly" ? -12 : -1);
-  loadMonth();
-});
-
-$("#next-month").addEventListener("click", () => {
-  state.month = shiftMonth(state.month, state.viewMode === "yearly" ? 12 : 1);
-  loadMonth();
-});
+$("#prev-month").addEventListener("click", () => navigateMonth(-1));
+$("#next-month").addEventListener("click", () => navigateMonth(1));
 
 $("#month-label").addEventListener("click", () => {
   const now = new Date().toISOString().slice(0, 7);
@@ -599,6 +592,18 @@ $("#month-label").addEventListener("click", () => {
     loadMonth();
   }
 });
+
+function navigateMonth(direction) {
+  const step = state.viewMode === "yearly" ? 12 : 1;
+  state.month = shiftMonth(state.month, direction * step);
+  const main = document.querySelector("main");
+  const cls = direction > 0 ? "slide-left" : "slide-right";
+  main.classList.remove("slide-left", "slide-right");
+  void main.offsetWidth;
+  main.classList.add(cls);
+  main.addEventListener("animationend", () => main.classList.remove(cls), { once: true });
+  loadMonth();
+}
 
 // Swipe navigation
 {
@@ -613,9 +618,7 @@ $("#month-label").addEventListener("click", () => {
     const dx = e.changedTouches[0].clientX - touchStartX;
     const dy = e.changedTouches[0].clientY - touchStartY;
     if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
-    const step = state.viewMode === "yearly" ? 12 : 1;
-    state.month = shiftMonth(state.month, dx < 0 ? step : -step);
-    loadMonth();
+    navigateMonth(dx < 0 ? 1 : -1);
   }, { passive: true });
 }
 
@@ -837,10 +840,10 @@ function renderIconGrid(filter) {
     const row = document.createElement("div");
     row.className = "icon-group-icons";
     for (const icon of icons) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "icon-option" + (icon === catModal.icon ? " selected" : "");
-    btn.textContent = icon;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "icon-option" + (icon === catModal.icon ? " selected" : "");
+      btn.textContent = icon;
       btn.addEventListener("click", () => { catModal.icon = icon; renderIconGrid(q); });
       row.appendChild(btn);
     }
