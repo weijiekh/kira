@@ -554,23 +554,55 @@ button.action-row:active .setting-name { color: var(--accent-text); }
   color: var(--text);
 }
 
+.icon-search {
+  width: 100%;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--circle);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+.icon-search:focus { border-color: var(--accent); }
+
 #icon-grid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   margin-bottom: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.icon-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-top: 4px;
+}
+
+.icon-group-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .icon-option {
   border: none;
   background: var(--circle);
   border-radius: 50%;
-  aspect-ratio: 1;
-  font-size: 17px;
+  width: 40px;
+  height: 40px;
+  font-size: 22px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .icon-option.selected { outline: 2px solid var(--accent); }

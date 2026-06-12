@@ -700,12 +700,23 @@ document.addEventListener("keydown", (e) => {
 
 state.catSettingsType = "expense";
 
-const ICON_CHOICES = [
-  "🍔", "🍜", "☕", "🍺", "🚌", "🚗", "⛽", "✈️",
-  "🛍️", "👕", "🧾", "📱", "🏠", "💡", "💊", "🏥",
-  "🎬", "🎮", "📚", "🎓", "🐶", "👶", "🎁", "💼",
-  "📈", "💰", "🏦", "🛡️", "💳", "🏋️", "💇", "📦",
-];
+const ICON_MAP = {
+  "Food": ["🍔", "🍕", "🍜", "🍱", "🍣", "🍩", "🍪", "🥗", "🥘", "🌮", "🥐", "🧁", "🍳", "🥩"],
+  "Drink": ["☕", "🍺", "🍷", "🧋", "🥤", "🍶", "🧃", "🍸"],
+  "Transport": ["🚌", "🚗", "🚕", "🚲", "🛵", "✈️", "🚄", "🚢", "⛽", "🅿️", "🛻", "🚁"],
+  "Shopping": ["🛍️", "👕", "👗", "👟", "👜", "💍", "🧢", "🕶️", "👔", "🧥"],
+  "Home": ["🏠", "🛋️", "🔧", "🧹", "🪴", "🛏️", "💡", "🚿", "🧺", "🏡"],
+  "Health": ["💊", "🏥", "🩺", "🧘", "🏋️", "💇", "🧴", "🦷", "👁️", "🩹"],
+  "Entertainment": ["🎬", "🎮", "🎵", "🎭", "🎪", "🎸", "🎤", "🎯", "🎲", "📺"],
+  "Education": ["📚", "🎓", "✏️", "📝", "🔬", "🧪", "💻", "🖥️", "📐", "🗂️"],
+  "Finance": ["💰", "💳", "🏦", "📈", "📉", "🧾", "💵", "🪙", "💎", "📊"],
+  "Family": ["👶", "🐶", "🐱", "🎁", "❤️", "👨‍👩‍👧", "🧸", "🍼", "🎂", "🏫"],
+  "Work": ["💼", "🖊️", "📎", "📋", "🗓️", "🖨️", "📤", "📥", "🤝", "📌"],
+  "Travel": ["🧳", "🗺️", "⛱️", "🏖️", "🏔️", "⛷️", "🏕️", "🌍", "🗼", "🎢"],
+  "Bills": ["📱", "📡", "🔌", "💧", "🔥", "📺", "🛡️", "📬", "🧯", "🏢"],
+  "Other": ["📦", "⭐", "🔔", "🌟", "🎀", "🏷️", "🔑", "🧰", "♻️", "🪄"],
+};
+const ICON_CHOICES = Object.values(ICON_MAP).flat();
 
 const COLOR_CHOICES = [
   "#ef5350", "#ec407a", "#ab47bc", "#7e57c2", "#5c6bc0", "#42a5f5", "#26c6da", "#26a69a",
@@ -813,16 +824,27 @@ function hideModals() {
   $("#modal-backdrop").classList.add("hidden");
 }
 
-function renderIconGrid() {
+function renderIconGrid(filter) {
   const grid = $("#icon-grid");
   grid.innerHTML = "";
-  for (const icon of ICON_CHOICES) {
+  const q = (filter || "").toLowerCase();
+  for (const [group, icons] of Object.entries(ICON_MAP)) {
+    if (q && !group.toLowerCase().includes(q)) continue;
+    const label = document.createElement("div");
+    label.className = "icon-group-label";
+    label.textContent = group;
+    grid.appendChild(label);
+    const row = document.createElement("div");
+    row.className = "icon-group-icons";
+    for (const icon of icons) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "icon-option" + (icon === catModal.icon ? " selected" : "");
     btn.textContent = icon;
-    btn.addEventListener("click", () => { catModal.icon = icon; renderIconGrid(); });
-    grid.appendChild(btn);
+      btn.addEventListener("click", () => { catModal.icon = icon; renderIconGrid(q); });
+      row.appendChild(btn);
+    }
+    grid.appendChild(row);
   }
 }
 
@@ -862,6 +884,7 @@ function openCatModal(source, type, editCat) {
     catModal.icon = ICON_CHOICES[0];
     catModal.color = COLOR_CHOICES[0];
   }
+  $("#icon-search").value = "";
   renderIconGrid();
   renderColorGrid();
   showModal("#cat-modal");
@@ -873,6 +896,8 @@ $("#add-category-btn").addEventListener("click", () => openCatModal("settings", 
 document.querySelectorAll(".cat-modal-type").forEach((btn) => {
   btn.addEventListener("click", () => setCatModalType(btn.dataset.type));
 });
+
+$("#icon-search").addEventListener("input", (e) => renderIconGrid(e.target.value));
 
 $("#cat-save").addEventListener("click", async () => {
   const name = $("#cat-name").value.trim();
