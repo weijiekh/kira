@@ -888,6 +888,7 @@ function openCatModal(source, type, editCat) {
     catModal.color = COLOR_CHOICES[0];
   }
   $("#cat-merge").classList.toggle("hidden", !editCat);
+  $("#merge-row").classList.add("hidden");
   $("#icon-search").value = "";
   renderIconGrid();
   renderColorGrid();
@@ -903,21 +904,32 @@ document.querySelectorAll(".cat-modal-type").forEach((btn) => {
 
 $("#icon-search").addEventListener("input", (e) => renderIconGrid(e.target.value));
 
-$("#cat-merge").addEventListener("click", async () => {
+$("#cat-merge").addEventListener("click", () => {
   if (!catModal.editId) return;
   const sameType = state.categories.filter((c) => c.type === catModal.type && c.id !== catModal.editId);
   if (!sameType.length) { alert("No other categories to merge into"); return; }
-  const choices = sameType.map((c) => `${c.icon} ${c.name}`).join("\n");
-  const picked = prompt(`Merge all transactions into which category?\n\n${choices}\n\nType the category name:`);
-  if (!picked) return;
-  const target = sameType.find((c) => c.name.toLowerCase() === picked.trim().toLowerCase());
-  if (!target) { alert("Category not found. Please type the exact name."); return; }
-  if (!confirm(`Move all transactions from this category to "${target.icon} ${target.name}" and delete this category?`)) return;
+  const sel = $("#merge-target");
+  sel.innerHTML = "";
+  for (const c of sameType) {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = `${c.icon} ${c.name}`;
+    sel.appendChild(opt);
+  }
+  $("#merge-row").classList.remove("hidden");
+  $("#cat-merge").classList.add("hidden");
+});
+
+$("#merge-confirm").addEventListener("click", async () => {
+  const targetId = Number($("#merge-target").value);
+  if (!targetId || !catModal.editId) return;
+  const target = state.categories.find((c) => c.id === targetId);
+  if (!confirm(`Move all transactions to "${target.icon} ${target.name}" and delete this category?`)) return;
   try {
     await api("/api/categories/merge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sourceId: catModal.editId, targetId: target.id }),
+      body: JSON.stringify({ sourceId: catModal.editId, targetId }),
     });
     hideModals();
     await reloadCategories();
