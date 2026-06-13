@@ -40,7 +40,7 @@ No build step. No client framework. ~0 cold-start.
 Prerequisites: [Node.js](https://nodejs.org) 18+ and npm.
 
 ```sh
-git clone <this repo> && cd money_manager   # or just cd into the folder
+git clone <this repo> && cd kira   # or just cd into the folder
 npm install                                  # installs wrangler (dev dependency)
 npm run db:migrate:local                     # creates the local SQLite DB with seed categories
 npm run dev                                  # http://localhost:8787
