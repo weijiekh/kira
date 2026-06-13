@@ -605,20 +605,21 @@ async function navigateMonth(direction) {
   main.addEventListener("animationend", () => main.classList.remove(cls), { once: true });
 }
 
-// Swipe navigation
+// Swipe navigation — listen on document so swipes work even when content is short
 {
   let touchStartX = 0;
   let touchStartY = 0;
-  const swipeTarget = document.getElementById("app");
-  swipeTarget.addEventListener("touchstart", (e) => {
+  document.addEventListener("touchstart", (e) => {
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
   }, { passive: true });
-  swipeTarget.addEventListener("touchend", (e) => {
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    const dy = e.changedTouches[0].clientY - touchStartY;
-    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
-    navigateMonth(dx < 0 ? 1 : -1);
+  document.addEventListener("touchend", (e) => {
+    if (!$("#app").classList.contains("hidden")) {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
+      navigateMonth(dx < 0 ? 1 : -1);
+    }
   }, { passive: true });
 }
 
@@ -1092,19 +1093,19 @@ $("#rec-save").addEventListener("click", async () => {
         }),
       });
     } else {
-    await api("/api/recurring", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: recModalType,
-        amount,
-        category_id: Number($("#rec-category").value),
-        note: $("#rec-note").value.trim(),
-        frequency: $("#rec-frequency").value,
-        start_date: $("#rec-start").value,
-        end_date: $("#rec-end").value || null,
-      }),
-    });
+      await api("/api/recurring", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: recModalType,
+          amount,
+          category_id: Number($("#rec-category").value),
+          note: $("#rec-note").value.trim(),
+          frequency: $("#rec-frequency").value,
+          start_date: $("#rec-start").value,
+          end_date: $("#rec-end").value || null,
+        }),
+      });
     }
     hideModals();
     renderRecurring();
