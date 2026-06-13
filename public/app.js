@@ -1062,7 +1062,6 @@ function openRecModal(rule) {
   $("#rec-frequency").value = rule ? rule.frequency : "monthly";
   $("#rec-frequency").disabled = !!rule;
   $("#rec-start").value = rule ? rule.start_date : todayStr();
-  $("#rec-start").disabled = !!rule;
   $("#rec-end").value = rule ? (rule.end_date || "") : "";
   $("#rec-modal .type-toggle").classList.toggle("hidden", !!rule);
   setRecModalType(rule ? rule.type : "expense");
@@ -1089,6 +1088,7 @@ $("#rec-save").addEventListener("click", async () => {
           amount,
           category_id: Number($("#rec-category").value),
           note: $("#rec-note").value.trim(),
+          start_date: $("#rec-start").value,
           end_date: $("#rec-end").value || null,
         }),
       });
