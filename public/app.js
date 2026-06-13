@@ -1090,6 +1090,7 @@ $("#rec-save").addEventListener("click", async () => {
           note: $("#rec-note").value.trim(),
           start_date: $("#rec-start").value,
           end_date: $("#rec-end").value || null,
+          active: true,
         }),
       });
     } else {
