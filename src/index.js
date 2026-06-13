@@ -430,15 +430,17 @@ async function handleApi(request, env, path) {
     const amount = body.amount != null ? Number(body.amount) : rule.amount;
     if (!Number.isFinite(amount) || amount <= 0) return badRequest("amount must be a positive number");
     const note = body.note != null ? String(body.note) : rule.note;
+    const categoryId = body.category_id != null ? Number(body.category_id) : rule.category_id;
+    if (!Number.isInteger(categoryId)) return badRequest("category_id must be an integer");
     let endDate = rule.end_date;
     if ("end_date" in body) {
       if (body.end_date != null && body.end_date !== "" && !DATE_RE.test(body.end_date)) return badRequest("end_date must be YYYY-MM-DD");
       endDate = body.end_date || null;
     }
     const updated = await DB.prepare(
-      "UPDATE recurring SET amount = ?, note = ?, end_date = ?, active = ? WHERE id = ? RETURNING *"
+      "UPDATE recurring SET amount = ?, note = ?, end_date = ?, active = ?, category_id = ? WHERE id = ? RETURNING *"
     )
-      .bind(amount, note, endDate, active, id)
+      .bind(amount, note, endDate, active, categoryId, id)
       .first();
     await processRecurring(DB);
     return json(updated);

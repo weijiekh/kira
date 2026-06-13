@@ -1006,6 +1006,9 @@ async function renderRecurring() {
       <button class="row-delete" aria-label="Delete rule">⊖</button>`;
     row.querySelector(".rec-title").textContent = rule.note || rule.category_name;
     row.querySelector(".rec-amount").style.color = rule.type === "income" ? "var(--income)" : "var(--expense)";
+    row.querySelector(".cat-row-icon").addEventListener("click", () => openRecModal(rule));
+    row.querySelector(".rec-info").addEventListener("click", () => openRecModal(rule));
+    row.querySelector(".rec-amount").addEventListener("click", () => openRecModal(rule));
     row.querySelector(".rec-toggle").addEventListener("change", async (e) => {
       try {
         await api(`/api/recurring/${rule.id}`, {
@@ -1033,6 +1036,7 @@ async function renderRecurring() {
 }
 
 let recModalType = "expense";
+let recEditingId = null;
 
 function setRecModalType(type) {
   recModalType = type;
@@ -1049,15 +1053,23 @@ function setRecModalType(type) {
   }
 }
 
-$("#add-recurring-btn").addEventListener("click", () => {
-  $("#rec-amount").value = "";
-  $("#rec-note").value = "";
-  $("#rec-frequency").value = "monthly";
-  $("#rec-start").value = todayStr();
-  $("#rec-end").value = "";
-  setRecModalType("expense");
+function openRecModal(rule) {
+  recEditingId = rule ? rule.id : null;
+  $("#rec-modal .modal-header h2").textContent = rule ? "Edit recurring transaction" : "Add recurring transaction";
+  $("#rec-amount").value = rule ? rule.amount : "";
+  $("#rec-note").value = rule ? (rule.note || "") : "";
+  $("#rec-frequency").value = rule ? rule.frequency : "monthly";
+  $("#rec-frequency").disabled = !!rule;
+  $("#rec-start").value = rule ? rule.start_date : todayStr();
+  $("#rec-start").disabled = !!rule;
+  $("#rec-end").value = rule ? (rule.end_date || "") : "";
+  $("#rec-modal .type-toggle").classList.toggle("hidden", !!rule);
+  setRecModalType(rule ? rule.type : "expense");
+  if (rule) $("#rec-category").value = rule.category_id;
   showModal("#rec-modal");
-});
+}
+
+$("#add-recurring-btn").addEventListener("click", () => openRecModal(null));
 
 document.querySelectorAll(".rec-modal-type").forEach((btn) => {
   btn.addEventListener("click", () => setRecModalType(btn.dataset.type));
@@ -1068,6 +1080,18 @@ $("#rec-save").addEventListener("click", async () => {
   if (!(amount > 0)) { alert("Please enter an amount greater than zero"); return; }
   if (!$("#rec-start").value) { alert("Please pick a start date"); return; }
   try {
+    if (recEditingId) {
+      await api(`/api/recurring/${recEditingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          category_id: Number($("#rec-category").value),
+          note: $("#rec-note").value.trim(),
+          end_date: $("#rec-end").value || null,
+        }),
+      });
+    } else {
     await api("/api/recurring", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1081,6 +1105,7 @@ $("#rec-save").addEventListener("click", async () => {
         end_date: $("#rec-end").value || null,
       }),
     });
+    }
     hideModals();
     renderRecurring();
     loadMonth();
