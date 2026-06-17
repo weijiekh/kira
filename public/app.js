@@ -21,6 +21,9 @@ const CURRENCIES = [
   "BGN", "TRY", "ILS", "ZAR", "MXN", "BRL", "ISK",
 ];
 
+let altCalendarEnabled = localStorage.getItem("altCalendarEnabled") === "true";
+let altCalendarType = localStorage.getItem("altCalendarType") || "chinese";
+
 let currency = localStorage.getItem("currency") || "USD";
 if (!CURRENCIES.includes(currency)) currency = "USD";
 let fmt = new Intl.NumberFormat(undefined, { style: "currency", currency });
@@ -53,6 +56,31 @@ function shiftMonth(month, delta) {
   const [y, m] = month.split("-").map(Number);
   const d = new Date(y, m - 1 + delta, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+const ALT_CALENDAR_LOCALES = {
+  chinese: "zh",
+  islamic: "ar",
+  japanese: "ja",
+  buddhist: "th",
+  hebrew: "he",
+  persian: "fa",
+  indian: "hi",
+};
+
+function formatAltDate(dateStr) {
+  if (!altCalendarEnabled) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  try {
+    const locale = ALT_CALENDAR_LOCALES[altCalendarType] || undefined;
+    return new Intl.DateTimeFormat(locale, {
+      calendar: altCalendarType,
+      month: "short",
+      day: "numeric",
+    }).format(d);
+  } catch {
+    return "";
+  }
 }
 
 function todayStr() {
@@ -109,7 +137,8 @@ function renderTransactions() {
     const label = new Date(date + "T00:00:00").toLocaleDateString(undefined, {
       weekday: "short", month: "short", day: "numeric",
     });
-    header.innerHTML = `<span>${label}</span><span>${fmt.format(dayTotal)}</span>`;
+    const alt = formatAltDate(date);
+    header.innerHTML = `<span>${label}${alt ? ` <span class="alt-date">${alt}</span>` : ""}</span><span>${fmt.format(dayTotal)}</span>`;
     group.appendChild(header);
 
     for (const tx of txs) {
@@ -1151,6 +1180,23 @@ $("#currency-select").addEventListener("change", (e) => {
 
 $("#dark-toggle").addEventListener("change", (e) => {
   applyTheme(e.target.checked ? "dark" : "light");
+});
+
+$("#calendar-toggle").checked = altCalendarEnabled;
+$("#calendar-select").value = altCalendarType;
+$("#calendar-type-row").classList.toggle("hidden", !altCalendarEnabled);
+
+$("#calendar-toggle").addEventListener("change", (e) => {
+  altCalendarEnabled = e.target.checked;
+  localStorage.setItem("altCalendarEnabled", altCalendarEnabled);
+  $("#calendar-type-row").classList.toggle("hidden", !altCalendarEnabled);
+  renderTransactions();
+});
+
+$("#calendar-select").addEventListener("change", (e) => {
+  altCalendarType = e.target.value;
+  localStorage.setItem("altCalendarType", altCalendarType);
+  renderTransactions();
 });
 
 // --- Currency converter ---

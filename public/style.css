@@ -196,6 +196,8 @@ main.slide-right {
   border-bottom: 1px solid var(--border);
 }
 
+.alt-date { opacity: 0.6; margin-left: 6px; }
+
 .tx-item {
   display: flex;
   align-items: center;
