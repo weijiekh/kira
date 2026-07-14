@@ -532,7 +532,7 @@ async function loadSuggestion() {
   try {
     const s = await api("/api/suggest");
     if (!s.category_id) return;
-    chip.textContent = `${s.category_icon} ${s.category_name} · ${fmt.format(s.amount)}${s.note ? " · " + s.note : ""} · tap to fill`;
+    chip.innerHTML = `<span class="suggest-chip-icon">${s.category_icon}</span> ${s.category_name} · ${fmt.format(s.amount)}${s.note ? " · " + s.note : ""}`;
     chip.onclick = () => {
       setFormType(s.type);
       state.selectedCategoryId = s.category_id;
