@@ -523,6 +523,28 @@ function openEditor(tx = null) {
   kpReset(tx ? (tx.orig_currency ? tx.orig_amount : tx.amount) : null);
   $("#editor").classList.remove("hidden");
   $("#app").classList.add("hidden");
+  $("#suggest-chip").classList.add("hidden");
+  if (!tx) loadSuggestion();
+}
+
+async function loadSuggestion() {
+  const chip = $("#suggest-chip");
+  try {
+    const s = await api("/api/suggest");
+    if (!s.category_id) return;
+    chip.textContent = `${s.category_icon} ${s.category_name} · ${fmt.format(s.amount)}${s.note ? " · " + s.note : ""} · tap to fill`;
+    chip.onclick = () => {
+      setFormType(s.type);
+      state.selectedCategoryId = s.category_id;
+      renderEditorCategories();
+      $("#memo-input").value = s.note || "";
+      kpReset(s.amount);
+      chip.classList.add("hidden");
+    };
+    chip.classList.remove("hidden");
+  } catch {
+    // suggestion is best-effort; ignore failures
+  }
 }
 
 function closeEditor() {

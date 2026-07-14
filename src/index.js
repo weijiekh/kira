@@ -213,6 +213,59 @@ async function handleApi(request, env, path) {
     return json({ ok: true });
   }
 
+  // --- Suggestions ---
+  if (path === "/api/suggest" && method === "GET") {
+    const now = new Date();
+    const weekday = now.getUTCDay();
+    const hour = now.getUTCHours();
+    // Bucket by hour-of-day; night wraps midnight (22:00–04:59).
+    const inBucketSql = hour >= 5 && hour < 11
+      ? "CAST(strftime('%H', created_at) AS INTEGER) BETWEEN 5 AND 10"
+      : hour >= 11 && hour < 17
+      ? "CAST(strftime('%H', created_at) AS INTEGER) BETWEEN 11 AND 16"
+      : hour >= 17 && hour < 22
+      ? "CAST(strftime('%H', created_at) AS INTEGER) BETWEEN 17 AND 21"
+      : "(CAST(strftime('%H', created_at) AS INTEGER) >= 22 OR CAST(strftime('%H', created_at) AS INTEGER) < 5)";
+
+    const bucketQuery = DB.prepare(
+      `SELECT type, category_id, note, amount, COUNT(*) AS cnt, MAX(created_at) AS latest
+       FROM transactions
+       WHERE CAST(strftime('%w', created_at) AS INTEGER) = ?
+         AND ${inBucketSql}
+       GROUP BY type, category_id, note, amount
+       HAVING cnt >= 3
+       ORDER BY cnt DESC, latest DESC
+       LIMIT 1`
+    ).bind(weekday);
+
+    const rollingQuery = DB.prepare(
+      `SELECT type, category_id, note, amount, COUNT(*) AS cnt, MAX(created_at) AS latest
+       FROM transactions
+       WHERE ABS(
+         (CAST(strftime('%H', created_at) AS INTEGER) * 60 + CAST(strftime('%M', created_at) AS INTEGER))
+         - ?
+       ) <= 120
+       GROUP BY type, category_id, note, amount
+       HAVING cnt >= 3
+       ORDER BY cnt DESC, latest DESC
+       LIMIT 1`
+    ).bind(now.getUTCHours() * 60 + now.getUTCMinutes());
+
+    const [bucketResult, rollingResult] = await Promise.all([bucketQuery.first(), rollingQuery.first()]);
+    const best = bucketResult || rollingResult;
+    if (!best) return json({});
+
+    const cat = await DB.prepare("SELECT name, icon FROM categories WHERE id = ?").bind(best.category_id).first();
+    return json({
+      type: best.type,
+      category_id: best.category_id,
+      category_name: cat?.name || "",
+      category_icon: cat?.icon || "",
+      note: best.note,
+      amount: best.amount,
+    });
+  }
+
   // --- Transactions ---
   if (path === "/api/transactions" && method === "GET") {
     const month = url.searchParams.get("month");
