@@ -369,8 +369,15 @@ async function renderBudgets() {
 // --- Keypad ---
 
 function kpDisplay() {
-  const s = kp.tokens.join("") + kp.entry;
-  return s || "0";
+  if (!kp.tokens.length) return kp.entry || "0";
+  let total = 0;
+  let op = "+";
+  for (const t of kp.tokens) {
+    if (t === "+" || t === "-") op = t;
+    else total = op === "+" ? total + Number(t) : total - Number(t);
+  }
+  const lastOp = kp.tokens[kp.tokens.length - 1];
+  return `${total}${lastOp}${kp.entry}`;
 }
 
 function kpValue() {
@@ -392,7 +399,9 @@ function kpReset(value) {
 }
 
 function updateAmountDisplay() {
-  $("#amount-display").textContent = kpDisplay();
+  const el = $("#amount-display");
+  el.textContent = kpDisplay();
+  el.scrollLeft = el.scrollWidth;
   updateConvHint();
 }
 

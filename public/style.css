@@ -889,9 +889,13 @@ button.secondary { background: var(--circle); color: var(--text-muted); font-siz
   font-size: 26px;
   font-weight: 600;
   max-width: 45%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-x: auto;
   white-space: nowrap;
+  scrollbar-width: none;
+}
+
+#amount-display::-webkit-scrollbar {
+  display: none;
 }
 
 .keypad {
