@@ -527,7 +527,8 @@ function openEditor(tx = null) {
   $("#editor").classList.remove("hidden");
   $("#app").classList.add("hidden");
   $("#suggest-chip").classList.add("hidden");
-  $("#memo-suggest").classList.add("hidden");
+  $("#memo-suggest").innerHTML = "";
+  $("#suggest-row").classList.add("hidden");
   if (!tx) loadSuggestion();
 }
 
@@ -545,11 +546,22 @@ async function loadSuggestion() {
       $("#memo-input").value = s.note || "";
       kpReset(s.amount);
       chip.classList.add("hidden");
+      syncSuggestRow();
+      onMemoInput();
     };
     chip.classList.remove("hidden");
+    syncSuggestRow();
   } catch {
     // suggestion is best-effort; ignore failures
   }
+}
+
+// The row holds the yellow repeat-entry pill plus the memo chips; hide it
+// once neither has anything to show.
+function syncSuggestRow() {
+  const hasChip = !$("#suggest-chip").classList.contains("hidden");
+  const hasMemos = $("#memo-suggest").childElementCount > 0;
+  $("#suggest-row").classList.toggle("hidden", !hasChip && !hasMemos);
 }
 
 let memoSuggestTimer = null;
@@ -584,7 +596,8 @@ async function loadMemoSuggestions(note, seq) {
       btn.textContent = `${row.category_icon} ${row.note}`;
       btn.addEventListener("click", () => {
         $("#memo-input").value = row.note;
-        box.classList.add("hidden");
+        box.innerHTML = "";
+        syncSuggestRow();
         if (!state.categoryPickedByUser && row.category_id !== state.selectedCategoryId) {
           state.selectedCategoryId = row.category_id;
           renderEditorCategories();
@@ -592,10 +605,11 @@ async function loadMemoSuggestions(note, seq) {
       });
       box.appendChild(btn);
     }
-    box.classList.toggle("hidden", options.length === 0);
+    syncSuggestRow();
   } catch {
     // memo autocomplete is best-effort; ignore failures
-    box.classList.add("hidden");
+    box.innerHTML = "";
+    syncSuggestRow();
   }
 }
 
