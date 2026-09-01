@@ -527,6 +527,7 @@ function openEditor(tx = null) {
   $("#editor").classList.remove("hidden");
   $("#app").classList.add("hidden");
   $("#suggest-chip").classList.add("hidden");
+  $("#memo-suggest").classList.add("hidden");
   if (!tx) loadSuggestion();
 }
 
@@ -554,27 +555,63 @@ async function loadSuggestion() {
 let memoSuggestTimer = null;
 let memoSuggestSeq = 0;
 
-// Pick the category past entries with a similar memo used, unless the user
-// already tapped one for this entry.
+// Autocomplete the memo from past notes, and pick the category those notes
+// used — unless the user already tapped a category for this entry.
 function onMemoInput() {
   clearTimeout(memoSuggestTimer);
-  const note = $("#memo-input").value.trim();
-  if (state.categoryPickedByUser || note.length < 2) return;
   const seq = ++memoSuggestSeq;
-  memoSuggestTimer = setTimeout(async () => {
-    try {
-      const s = await api(
-        `/api/suggest-category?note=${encodeURIComponent(note)}&type=${state.formType}`
-      );
-      if (seq !== memoSuggestSeq || state.categoryPickedByUser) return;
-      if ($("#memo-input").value.trim() !== note) return;
-      if (!s.category_id || s.category_id === state.selectedCategoryId) return;
-      state.selectedCategoryId = s.category_id;
-      renderEditorCategories();
-    } catch {
-      // memo-based category suggestion is best-effort; ignore failures
+  memoSuggestTimer = setTimeout(() => {
+    const note = $("#memo-input").value.trim();
+    if (seq !== memoSuggestSeq) return;
+    loadMemoSuggestions(note, seq);
+    if (!state.categoryPickedByUser && note.length >= 2) suggestCategoryFor(note, seq);
+  }, 200);
+}
+
+async function loadMemoSuggestions(note, seq) {
+  const box = $("#memo-suggest");
+  try {
+    const rows = await api(
+      `/api/memo-suggestions?q=${encodeURIComponent(note)}&type=${state.formType}`
+    );
+    if (seq !== memoSuggestSeq) return;
+    // Fetch one extra so dropping an exact match still leaves three.
+    const options = rows.filter((r) => r.note.toLowerCase() !== note.toLowerCase()).slice(0, 3);
+    box.innerHTML = "";
+    for (const row of options) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = `${row.category_icon} ${row.note}`;
+      btn.addEventListener("click", () => {
+        $("#memo-input").value = row.note;
+        box.classList.add("hidden");
+        if (!state.categoryPickedByUser && row.category_id !== state.selectedCategoryId) {
+          state.selectedCategoryId = row.category_id;
+          renderEditorCategories();
+        }
+      });
+      box.appendChild(btn);
     }
-  }, 300);
+    box.classList.toggle("hidden", options.length === 0);
+  } catch {
+    // memo autocomplete is best-effort; ignore failures
+    box.classList.add("hidden");
+  }
+}
+
+async function suggestCategoryFor(note, seq) {
+  try {
+    const s = await api(
+      `/api/suggest-category?note=${encodeURIComponent(note)}&type=${state.formType}`
+    );
+    if (seq !== memoSuggestSeq || state.categoryPickedByUser) return;
+    if ($("#memo-input").value.trim() !== note) return;
+    if (!s.category_id || s.category_id === state.selectedCategoryId) return;
+    state.selectedCategoryId = s.category_id;
+    renderEditorCategories();
+  } catch {
+    // memo-based category suggestion is best-effort; ignore failures
+  }
 }
 
 function closeEditor() {
@@ -756,6 +793,7 @@ document.querySelectorAll(".type-tab").forEach((btn) => {
 $("#fab").addEventListener("click", () => openEditor());
 $("#editor-back").addEventListener("click", closeEditor);
 $("#memo-input").addEventListener("input", onMemoInput);
+$("#memo-input").addEventListener("focus", onMemoInput);
 
 document.querySelectorAll(".key[data-key]").forEach((btn) => {
   btn.addEventListener("click", () => kpPress(btn.dataset.key));

@@ -877,6 +877,28 @@ button.secondary { background: var(--circle); color: var(--text-muted); font-siz
   text-align: center;
 }
 
+.memo-suggest {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 14px 0;
+  scrollbar-width: none;
+}
+
+.memo-suggest::-webkit-scrollbar { display: none; }
+
+.memo-suggest button {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--circle);
+  color: var(--text);
+  border-radius: 14px;
+  font-size: 13px;
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .suggest-chip {
   display: block;
   margin: 6px 14px;

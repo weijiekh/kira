@@ -308,6 +308,28 @@ async function handleApi(request, env, path) {
     });
   }
 
+  // Memo autocomplete: past notes, most-used first.
+  if (path === "/api/memo-suggestions" && method === "GET") {
+    const q = (url.searchParams.get("q") || "").trim();
+    const type = url.searchParams.get("type");
+    if (type && type !== "expense" && type !== "income") return badRequest("Invalid type");
+    const like = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
+    const { results } = await DB.prepare(
+      `SELECT t.note, t.category_id, c.name AS category_name, c.icon AS category_icon,
+              COUNT(*) AS cnt, MAX(t.created_at) AS latest
+       FROM transactions t JOIN categories c ON c.id = t.category_id
+       WHERE t.note IS NOT NULL AND t.note <> ''
+         ${q ? "AND lower(t.note) LIKE lower(?) ESCAPE '\\'" : ""}
+         ${type ? "AND t.type = ?" : ""}
+       GROUP BY lower(t.note)
+       ORDER BY cnt DESC, latest DESC
+       LIMIT 4`
+    )
+      .bind(...(q ? [like] : []), ...(type ? [type] : []))
+      .all();
+    return json(results);
+  }
+
   // --- Transactions ---
   if (path === "/api/transactions" && method === "GET") {
     const month = url.searchParams.get("month");
