@@ -308,20 +308,34 @@ async function handleApi(request, env, path) {
     });
   }
 
-  // Memo autocomplete: past notes, most-used first.
+  // Memo autocomplete: past notes, most-used first, each with the category
+  // that note was filed under most often.
   if (path === "/api/memo-suggestions" && method === "GET") {
     const q = (url.searchParams.get("q") || "").trim();
     const type = url.searchParams.get("type");
     if (type && type !== "expense" && type !== "income") return badRequest("Invalid type");
     const like = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
     const { results } = await DB.prepare(
-      `SELECT t.note, t.category_id, c.name AS category_name, c.icon AS category_icon,
-              COUNT(*) AS cnt, MAX(t.created_at) AS latest
-       FROM transactions t JOIN categories c ON c.id = t.category_id
-       WHERE t.note IS NOT NULL AND t.note <> ''
-         ${q ? "AND lower(t.note) LIKE lower(?) ESCAPE '\\'" : ""}
-         ${type ? "AND t.type = ?" : ""}
-       GROUP BY lower(t.note)
+      `WITH pairs AS (
+         SELECT lower(t.note) AS key, t.note AS note, t.category_id AS category_id,
+                COUNT(*) AS cnt, MAX(t.created_at) AS latest
+         FROM transactions t
+         WHERE t.note IS NOT NULL AND t.note <> ''
+           ${q ? "AND lower(t.note) LIKE lower(?) ESCAPE '\\'" : ""}
+           ${type ? "AND t.type = ?" : ""}
+         GROUP BY lower(t.note), t.category_id
+       ),
+       ranked AS (
+         SELECT *,
+                SUM(cnt) OVER (PARTITION BY key) AS note_cnt,
+                MAX(latest) OVER (PARTITION BY key) AS note_latest,
+                ROW_NUMBER() OVER (PARTITION BY key ORDER BY cnt DESC, latest DESC) AS rn
+         FROM pairs
+       )
+       SELECT r.note, r.category_id, c.name AS category_name, c.icon AS category_icon,
+              r.note_cnt AS cnt, r.note_latest AS latest
+       FROM ranked r JOIN categories c ON c.id = r.category_id
+       WHERE r.rn = 1
        ORDER BY cnt DESC, latest DESC
        LIMIT 4`
     )

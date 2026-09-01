@@ -595,6 +595,9 @@ async function loadMemoSuggestions(note, seq) {
       btn.type = "button";
       btn.textContent = `${row.category_icon} ${row.note}`;
       btn.addEventListener("click", () => {
+        // Cancel anything in flight so a late reply cannot re-pick the category.
+        clearTimeout(memoSuggestTimer);
+        memoSuggestSeq++;
         $("#memo-input").value = row.note;
         box.innerHTML = "";
         syncSuggestRow();
