@@ -99,6 +99,13 @@ function json(data, status = 200) {
   });
 }
 
+// Clamp a client-supplied UTC offset (minutes) to a real timezone range.
+function tzOffsetMinutes(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || Math.abs(n) > 840) return 0;
+  return Math.trunc(n);
+}
+
 function badRequest(message) {
   return json({ error: message }, 400);
 }
@@ -215,22 +222,27 @@ async function handleApi(request, env, path) {
 
   // --- Suggestions ---
   if (path === "/api/suggest" && method === "GET") {
-    const now = new Date();
+    // created_at is stored in UTC; the caller sends its local UTC offset in
+    // minutes so hour-of-day/weekday buckets match the user's wall clock.
+    const tzOffset = tzOffsetMinutes(url.searchParams.get("tz"));
+    const localExpr = `datetime(created_at, '${tzOffset} minutes')`;
+    const now = new Date(Date.now() + tzOffset * 60000);
     const weekday = now.getUTCDay();
     const hour = now.getUTCHours();
+    const hourExpr = `CAST(strftime('%H', ${localExpr}) AS INTEGER)`;
     // Bucket by hour-of-day; night wraps midnight (22:00–04:59).
     const inBucketSql = hour >= 5 && hour < 11
-      ? "CAST(strftime('%H', created_at) AS INTEGER) BETWEEN 5 AND 10"
+      ? `${hourExpr} BETWEEN 5 AND 10`
       : hour >= 11 && hour < 17
-      ? "CAST(strftime('%H', created_at) AS INTEGER) BETWEEN 11 AND 16"
+      ? `${hourExpr} BETWEEN 11 AND 16`
       : hour >= 17 && hour < 22
-      ? "CAST(strftime('%H', created_at) AS INTEGER) BETWEEN 17 AND 21"
-      : "(CAST(strftime('%H', created_at) AS INTEGER) >= 22 OR CAST(strftime('%H', created_at) AS INTEGER) < 5)";
+      ? `${hourExpr} BETWEEN 17 AND 21`
+      : `(${hourExpr} >= 22 OR ${hourExpr} < 5)`;
 
     const bucketQuery = DB.prepare(
       `SELECT type, category_id, note, amount, COUNT(*) AS cnt, MAX(created_at) AS latest
        FROM transactions
-       WHERE CAST(strftime('%w', created_at) AS INTEGER) = ?
+       WHERE CAST(strftime('%w', ${localExpr}) AS INTEGER) = ?
          AND ${inBucketSql}
        GROUP BY type, category_id, note, amount
        HAVING cnt >= 3
@@ -242,7 +254,7 @@ async function handleApi(request, env, path) {
       `SELECT type, category_id, note, amount, COUNT(*) AS cnt, MAX(created_at) AS latest
        FROM transactions
        WHERE ABS(
-         (CAST(strftime('%H', created_at) AS INTEGER) * 60 + CAST(strftime('%M', created_at) AS INTEGER))
+         (${hourExpr} * 60 + CAST(strftime('%M', ${localExpr}) AS INTEGER))
          - ?
        ) <= 120
        GROUP BY type, category_id, note, amount
@@ -263,6 +275,36 @@ async function handleApi(request, env, path) {
       category_icon: cat?.icon || "",
       note: best.note,
       amount: best.amount,
+    });
+  }
+
+  // Category for a memo: which category did past entries with this note use?
+  if (path === "/api/suggest-category" && method === "GET") {
+    const note = (url.searchParams.get("note") || "").trim();
+    const type = url.searchParams.get("type");
+    if (note.length < 2) return json({});
+    if (type && type !== "expense" && type !== "income") return badRequest("Invalid type");
+    const like = `%${note.replace(/[\\%_]/g, "\\$&")}%`;
+    const row = await DB.prepare(
+      `SELECT t.category_id, t.type, c.name AS category_name, c.icon AS category_icon,
+              COUNT(*) AS cnt, MAX(t.created_at) AS latest
+       FROM transactions t JOIN categories c ON c.id = t.category_id
+       WHERE t.note IS NOT NULL AND t.note <> ''
+         AND (lower(t.note) LIKE lower(?) ESCAPE '\\' OR lower(?) LIKE '%' || lower(t.note) || '%')
+         ${type ? "AND t.type = ?" : ""}
+       GROUP BY t.category_id
+       ORDER BY cnt DESC, latest DESC
+       LIMIT 1`
+    )
+      .bind(...(type ? [like, note, type] : [like, note]))
+      .first();
+    if (!row) return json({});
+    return json({
+      type: row.type,
+      category_id: row.category_id,
+      category_name: row.category_name,
+      category_icon: row.category_icon,
+      count: row.cnt,
     });
   }
 

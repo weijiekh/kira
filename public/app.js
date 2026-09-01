@@ -8,6 +8,7 @@ const state = {
   editingId: null,
   formType: "expense",
   selectedCategoryId: null,
+  categoryPickedByUser: false,
   editorDate: null,
 };
 
@@ -475,6 +476,7 @@ function renderEditorCategories() {
     btn.querySelector("span").textContent = cat.name;
     btn.addEventListener("click", () => {
       state.selectedCategoryId = cat.id;
+      state.categoryPickedByUser = true;
       renderEditorCategories();
       updateMemoIcon();
     });
@@ -517,6 +519,7 @@ function openEditor(tx = null) {
   $("#editor-delete").classList.toggle("hidden", !tx);
   $("#memo-input").value = tx ? tx.note : "";
   state.selectedCategoryId = tx ? tx.category_id : null;
+  state.categoryPickedByUser = !!tx;
   setFormType(tx ? tx.type : "expense");
   $("#entry-currency").value = tx?.orig_currency || currency;
   setEditorDate(tx ? tx.date : todayStr());
@@ -530,12 +533,13 @@ function openEditor(tx = null) {
 async function loadSuggestion() {
   const chip = $("#suggest-chip");
   try {
-    const s = await api("/api/suggest");
+    const s = await api(`/api/suggest?tz=${-new Date().getTimezoneOffset()}`);
     if (!s.category_id) return;
     chip.textContent = `${s.category_icon} ${s.category_name} · ${fmt.format(s.amount)}${s.note ? " · " + s.note : ""}`;
     chip.onclick = () => {
       setFormType(s.type);
       state.selectedCategoryId = s.category_id;
+      state.categoryPickedByUser = true;
       renderEditorCategories();
       $("#memo-input").value = s.note || "";
       kpReset(s.amount);
@@ -545,6 +549,32 @@ async function loadSuggestion() {
   } catch {
     // suggestion is best-effort; ignore failures
   }
+}
+
+let memoSuggestTimer = null;
+let memoSuggestSeq = 0;
+
+// Pick the category past entries with a similar memo used, unless the user
+// already tapped one for this entry.
+function onMemoInput() {
+  clearTimeout(memoSuggestTimer);
+  const note = $("#memo-input").value.trim();
+  if (state.categoryPickedByUser || note.length < 2) return;
+  const seq = ++memoSuggestSeq;
+  memoSuggestTimer = setTimeout(async () => {
+    try {
+      const s = await api(
+        `/api/suggest-category?note=${encodeURIComponent(note)}&type=${state.formType}`
+      );
+      if (seq !== memoSuggestSeq || state.categoryPickedByUser) return;
+      if ($("#memo-input").value.trim() !== note) return;
+      if (!s.category_id || s.category_id === state.selectedCategoryId) return;
+      state.selectedCategoryId = s.category_id;
+      renderEditorCategories();
+    } catch {
+      // memo-based category suggestion is best-effort; ignore failures
+    }
+  }, 300);
 }
 
 function closeEditor() {
@@ -725,6 +755,7 @@ document.querySelectorAll(".type-tab").forEach((btn) => {
 
 $("#fab").addEventListener("click", () => openEditor());
 $("#editor-back").addEventListener("click", closeEditor);
+$("#memo-input").addEventListener("input", onMemoInput);
 
 document.querySelectorAll(".key[data-key]").forEach((btn) => {
   btn.addEventListener("click", () => kpPress(btn.dataset.key));
